@@ -750,8 +750,8 @@ sendDealButton.addEventListener("click", async () => {
       acc[item.key] = item.value;
       return acc;
     }, {});
-    // https://dealdriverapi.drapcode.co/parseWord
-    const response = await fetch("http://localhost:3002/parseWord", {
+    //
+    const response = await fetch("https://dealdriverapi.drapcode.co/parseWord", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
