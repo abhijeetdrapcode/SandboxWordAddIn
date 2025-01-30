@@ -308,108 +308,6 @@ async function loadAllParagraphsData() {
   }
 }
 
-// async function getListInfoFromSelection() {
-//   if (!isDataLoaded) {
-//     console.log("Data is still loading. Please wait.");
-//     return;
-//   }
-
-//   const selectedCategory = document.getElementById("categorySelect").value;
-//   if (!selectedCategory) {
-//     console.log("No category selected");
-//     return;
-//   }
-
-//   try {
-//     await Word.run(async (context) => {
-//       const selection = context.document.getSelection();
-//       const range = selection.getRange();
-//       range.load("text");
-//       await context.sync();
-
-//       // const selectedRange = range.text;
-//       const paragraphs = selection.paragraphs;
-//       paragraphs.load("items");
-//       await context.sync();
-
-//       let newSelections = [];
-
-//       for (let i = 0; i < paragraphs.items.length; i++) {
-//         const selectedParagraph = paragraphs.items[i];
-//         selectedParagraph.load("text,isListItem");
-//         await context.sync();
-
-//         if (selectedParagraph.isListItem) {
-//           selectedParagraph.listItem.load("level,listString");
-//           await context.sync();
-//         }
-
-//         const selectedText = selectedParagraph.text.trim().replace(/^\.\s*/, "");
-//         const normalizedSelectedText = normalizeText(selectedText);
-
-//         const matchingParagraphs = allParagraphsData.filter(
-//           (para) => para.value === normalizedSelectedText || para.originalText === selectedText
-//         );
-
-//         if (matchingParagraphs.length > 0) {
-//           let bestMatch = matchingParagraphs[0];
-
-//           if (matchingParagraphs.length > 1 && selectedParagraph.isListItem) {
-//             const selectedLevel = selectedParagraph.listItem.level;
-//             const selectedListString = selectedParagraph.listItem.listString;
-
-//             const exactMatch = matchingParagraphs.find(
-//               (para) => para.isListItem && para.level === selectedLevel && para.listString === selectedListString
-//             );
-
-//             if (exactMatch) {
-//               bestMatch = exactMatch;
-//             }
-//           }
-
-//           const isDuplicate = categoryData[selectedCategory].some(
-//             (item) => item.key === bestMatch.key && item.value === bestMatch.value
-//           );
-
-//           if (!isDuplicate) {
-//             newSelections.push({
-//               key: bestMatch.key,
-//               value: bestMatch.value,
-//             });
-//           }
-//         }
-//       }
-
-//       if (newSelections.length > 0) {
-//         categoryData[selectedCategory] = [...categoryData[selectedCategory], ...newSelections];
-
-//         categoryData[selectedCategory].sort((a, b) => {
-//           const aNumbers = a.key.split(".").map((num) => parseInt(num));
-//           const bNumbers = b.key.split(".").map((num) => parseInt(num));
-
-//           for (let i = 0; i < Math.max(aNumbers.length, bNumbers.length); i++) {
-//             if (isNaN(aNumbers[i])) return 1;
-//             if (isNaN(bNumbers[i])) return -1;
-//             if (aNumbers[i] !== bNumbers[i]) return aNumbers[i] - bNumbers[i];
-//           }
-//           return 0;
-//         });
-
-//         updateCategoryDisplay(selectedCategory);
-//         const clipboardString = formatCategoryData(selectedCategory);
-//         await copyToClipboard(clipboardString);
-
-//         console.log(`Updated ${selectedCategory} data:`, categoryData[selectedCategory]);
-//       }
-//     });
-//   } catch (error) {
-//     console.error("An error occurred while processing selection:", error);
-//     if (error instanceof OfficeExtension.Error) {
-//       console.error("Debug info:", error.debugInfo);
-//     }
-//   }
-// }
-
 async function getListInfoFromSelection() {
   if (!isDataLoaded) {
     console.log("Data is still loading. Please wait.");
@@ -652,17 +550,18 @@ async function handleLogin(userName, password) {
       localStorage.setItem("authToken", data.token);
 
       // Extract deal names from the response
-      const dealNames = data.userDetails?.deal_name || [];
+      // const dealNames = data.userDetails?.deal_name || [];
+      const dealNames = data.userDetails?.tenantId || [];
 
       // Populate the dropdown
       const dealSelect = document.getElementById("dealSelect");
-      dealSelect.innerHTML = ""; // Clear existing options
+      dealSelect.innerHTML = "";
 
       dealNames.forEach((deal) => {
         const option = document.createElement("option");
-        option.value = deal._id; // Use the deal ID as the value
+        option.value = deal._id;
         console.log("These are the option value ", option.value);
-        option.textContent = deal.deal_name; // Display the deal name
+        option.textContent = deal.name;
         dealSelect.appendChild(option);
       });
 
@@ -735,15 +634,18 @@ sendDealButton.addEventListener("click", async () => {
     }
 
     const loginResponseData = JSON.parse(loginResponseDataString);
-    const dealsArray = loginResponseData.userDetails.deal_name || [];
-    const matchedDeal = dealsArray.find((deal) => deal.deal_name === selectedDealName);
+    // const dealsArray = loginResponseData.userDetails.deal_name || [];
+    const dealsArray = loginResponseData.userDetails.tenantId || [];
+    const matchedDeal = dealsArray.find((deal) => deal.name === selectedDealName);
+    console.log("This is the matched Deal: ", matchedDeal);
 
     if (!matchedDeal) {
       showMessage("Could not find matching deal", true);
       return;
     }
 
-    const dealUuid = matchedDeal.uuid;
+    const dealUuid = matchedDeal.deal;
+    console.log("This is matched deal id: ", matchedDeal.deal);
     const tenantId = loginResponseData.tenant.uuid;
 
     const formattedCategoryData = categoryData[selectedCategory].reduce((acc, item) => {
