@@ -163,6 +163,7 @@ async function handleReloadContent() {
   }
   await setInitialContentHash();
   await loadAllParagraphsData();
+  await loadArticleStructuredData();
 }
 
 async function handleCategoryChange() {
@@ -315,6 +316,8 @@ async function getListInfoFromSelection() {
   }
 
   const selectedCategory = document.getElementById("categorySelect").value;
+  console.log("Selected Category:", selectedCategory); // Debugging log
+
   if (!selectedCategory) {
     console.log("No category selected");
     return;
@@ -371,10 +374,34 @@ async function getListInfoFromSelection() {
           );
 
           if (!isDuplicate) {
-            newSelections.push({
-              key: bestMatch.key,
-              value: bestMatch.value,
-            });
+            if (selectedCategory === "closing") {
+              // Ensure bestMatch.key is defined before splitting
+              if (bestMatch.key) {
+                const keyParts = bestMatch.key.split(/(?<=^[^\d]+)(?=\d)/);
+                const mainHeadingKey = keyParts[0].trim().replace(/\.$/, "");
+                const sectionHeading = bestMatch.key.trim();
+                const content = bestMatch.value.trim();
+
+                const matchedParagraph = allParagraphsData.find((para) => para.key.trim() === mainHeadingKey);
+
+                const fullMainHeading = matchedParagraph
+                  ? mainHeadingKey + " " + matchedParagraph.value
+                  : mainHeadingKey;
+
+                newSelections.push({
+                  mainHeading: fullMainHeading,
+                  sectionHeading: sectionHeading,
+                  content: content,
+                });
+              } else {
+                console.error("bestMatch.key is undefined, skipping 'closing' category handling.");
+              }
+            } else {
+              newSelections.push({
+                key: bestMatch.key,
+                value: bestMatch.value,
+              });
+            }
           }
         }
       }
@@ -384,8 +411,8 @@ async function getListInfoFromSelection() {
 
         // Sort keys numerically
         categoryData[selectedCategory].sort((a, b) => {
-          const aNumbers = a.key.split(".").map((num) => parseInt(num));
-          const bNumbers = b.key.split(".").map((num) => parseInt(num));
+          const aNumbers = a.key ? a.key.split(".").map((num) => parseInt(num)) : [];
+          const bNumbers = b.key ? b.key.split(".").map((num) => parseInt(num)) : [];
 
           for (let i = 0; i < Math.max(aNumbers.length, bNumbers.length); i++) {
             if (isNaN(aNumbers[i])) return 1;
@@ -396,7 +423,15 @@ async function getListInfoFromSelection() {
         });
 
         updateCategoryDisplay(selectedCategory);
-        const clipboardString = formatCategoryData(selectedCategory);
+
+        let clipboardString;
+        if (selectedCategory === "closing") {
+          console.log("Formatting closing checklist data");
+          clipboardString = formatClosingChecklistData(selectedCategory);
+        } else {
+          clipboardString = formatCategoryData(selectedCategory);
+        }
+
         await copyToClipboard(clipboardString);
 
         console.log(`Updated ${selectedCategory} data:`, categoryData[selectedCategory]);
@@ -421,6 +456,63 @@ function formatCategoryData(category) {
   return `{\n${pairs}\n}`;
 }
 
+function formatClosingChecklistData(selectedCategory) {
+  const selections = categoryData[selectedCategory];
+
+  let formattedData = selections
+    .map((selection) => {
+      if (!selection.mainHeading || !selection.sectionHeading || !selection.content) {
+        console.error("Missing data in selection:", selection);
+        return ""; // Skip invalid selections
+      }
+
+      try {
+        // Ensure we handle undefined or null values
+        const sectionKeyParts = selection.sectionHeading ? selection.sectionHeading.split(".") : [];
+        const mainHeadingKeyParts = selection.mainHeading ? selection.mainHeading.split(".") : [];
+
+        if (sectionKeyParts.length === 0 || mainHeadingKeyParts.length === 0) {
+          console.error("Invalid section heading or main heading format:", selection);
+          return ""; // Skip invalid formats
+        }
+
+        // Now format the output based on valid data
+        const formatted = {
+          mainHeading: selection.mainHeading.trim(),
+          sectionHeading: selection.sectionHeading.trim(),
+          content: selection.content.trim(),
+        };
+
+        return `${formatted.mainHeading} - ${formatted.sectionHeading}: ${formatted.content}`;
+      } catch (error) {
+        console.error("Error while formatting data:", error, selection);
+        return ""; // Return empty if error occurs
+      }
+    })
+    .filter(Boolean); // Filter out empty entries
+
+  return formattedData.join("\n"); // Join formatted data into a single string
+}
+
+// function updateCategoryDisplay(category) {
+//   const contentElement = document.querySelector(`#${category}Content .content-area`);
+//   if (!contentElement) {
+//     console.error("Content element not found for category:", category);
+//     return;
+//   }
+//   console.log("Closing array: ", categoryData);
+//   contentElement.innerHTML = "";
+
+//   if (categoryData[category]) {
+//     categoryData[category].forEach((pair) => {
+//       const keySpan = `<span class="key">${pair.key}</span>`;
+//       const valueSpan = `<span class="value">${pair.value}</span>`;
+//       const formattedPair = `<div class="pair">${keySpan}: ${valueSpan}</div>`;
+//       contentElement.innerHTML += formattedPair;
+//     });
+//   }
+// }
+
 function updateCategoryDisplay(category) {
   const contentElement = document.querySelector(`#${category}Content .content-area`);
   if (!contentElement) {
@@ -428,18 +520,41 @@ function updateCategoryDisplay(category) {
     return;
   }
 
-  contentElement.innerHTML = "";
+  console.log(`${category} array:`, categoryData); // Debugging log to see the data
 
+  contentElement.innerHTML = ""; // Clear any existing content
+
+  // Check if category data exists
   if (categoryData[category]) {
     categoryData[category].forEach((pair) => {
-      const keySpan = `<span class="key">${pair.key}</span>`;
-      const valueSpan = `<span class="value">${pair.value}</span>`;
-      const formattedPair = `<div class="pair">${keySpan}: ${valueSpan}</div>`;
+      let formattedPair = "";
+
+      // For "closing" category, display mainHeading, sectionHeading, and content
+      if (category === "closing") {
+        formattedPair = `
+          <div class="pair">
+            <span class="main-heading">Main Heading: ${pair.mainHeading}</span>
+            <span class="section-heading">Section Heading: ${pair.sectionHeading}</span>
+            <span class="content">Content: ${pair.content}</span>
+          </div>
+          <br><br>
+        `;
+      } else {
+        // For other categories, display key and value
+        formattedPair = `
+          <div class="pair">
+            <span class="key">${pair.key}</span>: 
+            <span class="value">${pair.value}</span>
+          </div>
+          <br><br>
+        `;
+      }
+
+      // Append the formatted pair to the content element
       contentElement.innerHTML += formattedPair;
     });
   }
 }
-
 async function copyToClipboard(text) {
   if (!text) {
     console.error("No text provided to copy");
