@@ -451,6 +451,9 @@ function formatCategoryData(category) {
     return "{}";
   }
 
+  if (category === "closing") {
+    return formatClosingChecklistData(category);
+  }
   const pairs = categoryData[category].map((pair) => `"${pair.key}": "${pair.value.replace(/"/g, '\\"')}"`).join(",\n");
 
   return `{\n${pairs}\n}`;
@@ -459,39 +462,49 @@ function formatCategoryData(category) {
 function formatClosingChecklistData(selectedCategory) {
   const selections = categoryData[selectedCategory];
 
-  let formattedData = selections
-    .map((selection) => {
-      if (!selection.mainHeading || !selection.sectionHeading || !selection.content) {
-        console.error("Missing data in selection:", selection);
-        return ""; // Skip invalid selections
+  // Create an object to store grouped data
+  const formattedData = {};
+
+  selections.forEach((selection) => {
+    if (!selection.mainHeading || !selection.sectionHeading || !selection.content) {
+      console.error("Missing data in selection:", selection);
+      return;
+    }
+
+    try {
+      const mainHeading = selection.mainHeading.trim();
+      const sectionHeading = selection.sectionHeading.trim();
+      const content = selection.content.trim();
+
+      // Validate section parts
+      const sectionKeyParts = sectionHeading.split(".");
+      const mainHeadingKeyParts = mainHeading.split(".");
+
+      if (sectionKeyParts.length === 0 || mainHeadingKeyParts.length === 0) {
+        console.error("Invalid section heading or main heading format:", selection);
+        return;
       }
 
-      try {
-        // Ensure we handle undefined or null values
-        const sectionKeyParts = selection.sectionHeading ? selection.sectionHeading.split(".") : [];
-        const mainHeadingKeyParts = selection.mainHeading ? selection.mainHeading.split(".") : [];
-
-        if (sectionKeyParts.length === 0 || mainHeadingKeyParts.length === 0) {
-          console.error("Invalid section heading or main heading format:", selection);
-          return ""; // Skip invalid formats
-        }
-
-        // Now format the output based on valid data
-        const formatted = {
-          mainHeading: selection.mainHeading.trim(),
-          sectionHeading: selection.sectionHeading.trim(),
-          content: selection.content.trim(),
+      // Initialize main heading object if it doesn't exist
+      if (!formattedData[mainHeading]) {
+        formattedData[mainHeading] = {
+          title: mainHeading,
+          sections: [],
         };
-
-        return `${formatted.mainHeading} - ${formatted.sectionHeading}: ${formatted.content}`;
-      } catch (error) {
-        console.error("Error while formatting data:", error, selection);
-        return ""; // Return empty if error occurs
       }
-    })
-    .filter(Boolean); // Filter out empty entries
 
-  return formattedData.join("\n"); // Join formatted data into a single string
+      // Add section to the main heading
+      formattedData[mainHeading].sections.push({
+        sectionHeading: sectionHeading,
+        content: content,
+      });
+    } catch (error) {
+      console.error("Error while formatting data:", error, selection);
+    }
+  });
+
+  // Convert to formatted JSON string before returning
+  return JSON.stringify(formattedData, null, 2);
 }
 
 // function updateCategoryDisplay(category) {
@@ -521,37 +534,33 @@ function updateCategoryDisplay(category) {
   }
 
   console.log(`${category} array:`, categoryData); // Debugging log to see the data
-
   contentElement.innerHTML = ""; // Clear any existing content
 
   // Check if category data exists
   if (categoryData[category]) {
     categoryData[category].forEach((pair) => {
-      let formattedPair = "";
-
-      // For "closing" category, display mainHeading, sectionHeading, and content
+      // For closing category, map the fields to key-value format
       if (category === "closing") {
-        formattedPair = `
-          <div class="pair">
-            <span class="main-heading">Main Heading: ${pair.mainHeading}</span>
-            <span class="section-heading">Section Heading: ${pair.sectionHeading}</span>
-            <span class="content">Content: ${pair.content}</span>
-          </div>
-          <br><br>
-        `;
-      } else {
-        // For other categories, display key and value
-        formattedPair = `
-          <div class="pair">
-            <span class="key">${pair.key}</span>: 
-            <span class="value">${pair.value}</span>
-          </div>
-          <br><br>
-        `;
-      }
+        const entries = [
+          { key: "Main Heading", value: pair.mainHeading },
+          { key: "Section Heading", value: pair.sectionHeading },
+          { key: "Content", value: pair.content },
+        ];
 
-      // Append the formatted pair to the content element
-      contentElement.innerHTML += formattedPair;
+        entries.forEach((entry) => {
+          const keySpan = `<span class="key">${entry.key}</span>`;
+          const valueSpan = `<span class="value">${entry.value}</span>`;
+          const formattedPair = `<div class="pair">${keySpan}: ${valueSpan}</div>`;
+          contentElement.innerHTML += formattedPair;
+        });
+
+        contentElement.innerHTML += "<br>"; // Add spacing between entry groups
+      } else {
+        const keySpan = `<span class="key">${pair.key}</span>`;
+        const valueSpan = `<span class="value">${pair.value}</span>`;
+        const formattedPair = `<div class="pair">${keySpan}: ${valueSpan}</div>`;
+        contentElement.innerHTML += formattedPair;
+      }
     });
   }
 }
@@ -799,3 +808,12 @@ sendDealButton.addEventListener("click", async () => {
     sendDealButton.style.cursor = "pointer";
   }
 });
+
+function togglePassword() {
+  var toggler = document.getElementById("password");
+  if (toggler.type === "password") {
+    toggler.type = "text";
+  } else {
+    toggler.type = "password";
+  }
+}
