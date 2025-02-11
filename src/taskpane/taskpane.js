@@ -163,7 +163,7 @@ async function handleReloadContent() {
   }
   await setInitialContentHash();
   await loadAllParagraphsData();
-  await loadArticleStructuredData();
+  // await loadArticleStructuredData();
 }
 
 async function handleCategoryChange() {
@@ -462,45 +462,50 @@ function formatCategoryData(category) {
 function formatClosingChecklistData(selectedCategory) {
   const selections = categoryData[selectedCategory];
 
+  // Validate if selections exist and is an array
+  if (!Array.isArray(selections)) {
+    console.error("Invalid selections data for category:", selectedCategory);
+    return "{}";
+  }
+
   // Create an object to store grouped data
   const formattedData = {};
 
   selections.forEach((selection) => {
+    // Validate required fields
     if (!selection.mainHeading || !selection.sectionHeading || !selection.content) {
       console.error("Missing data in selection:", selection);
-      return;
+      return; // Skip this selection if required fields are missing
     }
 
-    try {
-      const mainHeading = selection.mainHeading.trim();
-      const sectionHeading = selection.sectionHeading.trim();
-      const content = selection.content.trim();
+    // Normalize and trim data
+    const mainHeading = selection.mainHeading.trim();
+    const sectionHeading = selection.sectionHeading.trim();
+    const content = selection.content.trim();
 
-      // Validate section parts
-      const sectionKeyParts = sectionHeading.split(".");
-      const mainHeadingKeyParts = mainHeading.split(".");
+    // Split sectionHeading into parts for hierarchical structure
+    const sectionKeyParts = sectionHeading.split(".").map((part) => part.trim());
+    const mainHeadingKeyParts = mainHeading.split(".").map((part) => part.trim());
 
-      if (sectionKeyParts.length === 0 || mainHeadingKeyParts.length === 0) {
-        console.error("Invalid section heading or main heading format:", selection);
-        return;
-      }
-
-      // Initialize main heading object if it doesn't exist
-      if (!formattedData[mainHeading]) {
-        formattedData[mainHeading] = {
-          title: mainHeading,
-          sections: [],
-        };
-      }
-
-      // Add section to the main heading
-      formattedData[mainHeading].sections.push({
-        sectionHeading: sectionHeading,
-        content: content,
-      });
-    } catch (error) {
-      console.error("Error while formatting data:", error, selection);
+    // Validate section parts
+    if (sectionKeyParts.length === 0 || mainHeadingKeyParts.length === 0) {
+      console.error("Invalid section heading or main heading format:", selection);
+      return; // Skip this selection if the format is invalid
     }
+
+    // Initialize main heading object if it doesn't exist
+    if (!formattedData[mainHeading]) {
+      formattedData[mainHeading] = {
+        title: mainHeading,
+        sections: [],
+      };
+    }
+
+    // Add section to the main heading
+    formattedData[mainHeading].sections.push({
+      sectionHeading: sectionHeading,
+      content: content,
+    });
   });
 
   // Convert to formatted JSON string before returning
@@ -710,6 +715,8 @@ async function handleLogin(userName, password) {
     return false;
   }
 }
+
+//This is where the change of data has to be made
 sendDealButton.addEventListener("click", async () => {
   // Create or select the message element
   let messageElement = document.getElementById("dealSendMessage");
@@ -747,6 +754,7 @@ sendDealButton.addEventListener("click", async () => {
   try {
     const selectedDealName = dealSelect.options[dealSelect.selectedIndex].text;
     const selectedCategory = document.getElementById("categorySelect").value;
+    console.log("This is the selected category: ", selectedCategory);
     const loginResponseDataString = localStorage.getItem("loginResponseData");
     // const environmentSelect = document.getElementById("environmentSelect");
     const selectedEnvironmentValue = selectedEnvironment;
@@ -772,31 +780,52 @@ sendDealButton.addEventListener("click", async () => {
     console.log("This is matched deal id: ", matchedDeal.deal);
     const tenantId = loginResponseData.tenant.uuid;
 
-    const formattedCategoryData = categoryData[selectedCategory].reduce((acc, item) => {
-      acc[item.key] = item.value;
-      return acc;
-    }, {});
-    //
-    const response = await fetch("https://dealdriverapi.drapcode.co/parseWord", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        dealId: dealUuid,
-        tenantId: tenantId,
-        environment: selectedEnvironmentValue, // Include the environment header
-      },
-      body: JSON.stringify(formattedCategoryData),
-    });
-
-    if (response.ok) {
-      const responseData = await response.json();
-      showMessage(`${selectedCategory} data sent successfully to ${selectedDealName}`);
-      console.log("Server response:", responseData);
+    if (selectedCategory === "closing") {
+      const response = await fetch("http://localhost:5000/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          dealId: dealUuid,
+          tenantId: tenantId,
+          environment: selectedEnvironmentValue,
+        },
+        body: formatClosingChecklistData(selectedCategory),
+      });
+      console.log(
+        "This is the body of the data being sent in the localhost: ",
+        formatClosingChecklistData(selectedCategory)
+      );
+      console.log("This is the response data of the preview api", response);
     } else {
-      const errorData = await response.text();
-      showMessage("Error while sending the data", true);
-      console.error(`Failed to send deal. Status: ${response.status}`);
-      console.error("Error details:", errorData);
+      const formattedCategoryData = categoryData[selectedCategory].reduce((acc, item) => {
+        acc[item.key] = item.value;
+        return acc;
+      }, {});
+      console.log(
+        "This the formattedCategoryData that is being parsed before sending to the api: ",
+        formattedCategoryData
+      );
+      //
+      const response = await fetch("https://dealdriverapi.drapcode.co/parseWord", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          dealId: dealUuid,
+          tenantId: tenantId,
+          environment: selectedEnvironmentValue,
+        },
+        body: JSON.stringify(formattedCategoryData),
+      });
+      if (response.ok) {
+        const responseData = await response.json();
+        showMessage(`${selectedCategory} data sent successfully to ${selectedDealName}`);
+        console.log("Server response:", responseData);
+      } else {
+        const errorData = await response.text();
+        showMessage("Error while sending the data", true);
+        console.error(`Failed to send deal. Status: ${response.status}`);
+        console.error("Error details:", errorData);
+      }
     }
   } catch (error) {
     showMessage("Error sending deal", true);
