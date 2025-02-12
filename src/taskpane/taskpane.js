@@ -646,12 +646,14 @@ async function handleLogin(userName, password) {
     // Get selected environment from the dropdown
     const environmentSelect = document.getElementById("environmentSelect");
     selectedEnvironment = environmentSelect.value;
-
+    console.log("This is the selected Environment: ", selectedEnvironment);
     // Determine the API URL based on the selected environment
     const apiUrl =
       selectedEnvironment === "production"
         ? "https://deal-driver-20245869.api.drapcode.io/api/v1/developer/login"
-        : "https://deal-driver-20245869.api.sandbox.drapcode.io/api/v1/developer/login";
+        : selectedEnvironment === "preview"
+          ? "https://deal-driver-20245869.api.preview.drapcode.io/api/v1/developer/login"
+          : "https://deal-driver-20245869.api.sandbox.drapcode.io/api/v1/developer/login";
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -781,7 +783,7 @@ sendDealButton.addEventListener("click", async () => {
     const tenantId = loginResponseData.tenant.uuid;
 
     if (selectedCategory === "closing") {
-      const response = await fetch("http://localhost:5000/add", {
+      const response = await fetch("http://localhost:3002/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -795,6 +797,16 @@ sendDealButton.addEventListener("click", async () => {
         "This is the body of the data being sent in the localhost: ",
         formatClosingChecklistData(selectedCategory)
       );
+      if (response.ok) {
+        const responseData = await response.json();
+        showMessage(`${selectedCategory} data sent successfully to ${selectedDealName}`);
+        console.log("Server response:", responseData);
+      } else {
+        const errorData = await response.text();
+        showMessage("Error while sending the data", true);
+        console.error(`Failed to send deal. Status: ${response.status}`);
+        console.error("Error details:", errorData);
+      }
       console.log("This is the response data of the preview api", response);
     } else {
       const formattedCategoryData = categoryData[selectedCategory].reduce((acc, item) => {
