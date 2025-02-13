@@ -547,8 +547,8 @@ function updateCategoryDisplay(category) {
       // For closing category, map the fields to key-value format
       if (category === "closing") {
         const entries = [
-          { key: "Main Heading", value: pair.mainHeading },
-          { key: "Section Heading", value: pair.sectionHeading },
+          { key: "Checklist Area", value: pair.mainHeading },
+          { key: "Action", value: pair.sectionHeading },
           { key: "Content", value: pair.content },
         ];
 
@@ -559,7 +559,7 @@ function updateCategoryDisplay(category) {
           contentElement.innerHTML += formattedPair;
         });
 
-        contentElement.innerHTML += "<br>"; // Add spacing between entry groups
+        contentElement.innerHTML += "<br><br>"; // Add spacing between entry groups
       } else {
         const keySpan = `<span class="key">${pair.key}</span>`;
         const valueSpan = `<span class="value">${pair.value}</span>`;
@@ -783,7 +783,7 @@ sendDealButton.addEventListener("click", async () => {
     const tenantId = loginResponseData.tenant.uuid;
 
     if (selectedCategory === "closing") {
-      const response = await fetch("http://localhost:3002/add", {
+      const response = await fetch("https://dealdriverapi.drapcode.co/addClosingData", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

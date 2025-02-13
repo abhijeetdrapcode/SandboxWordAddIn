@@ -172,16 +172,16 @@ button:disabled {
   }
 }
 .pair {
-  margin-bottom: 8px;
-  padding: 5px 8px;
-  border-left: 3px solid #2c3e50;
-  background-color: #ffffff;
-  font-family: "Georgia", "Cambria", "Times New Roman", serif;
+ margin-bottom: 0.5em;
+  text-align: justify;
+  padding-left: 0;
+  margin-left: 0;
+  text-indent: 0;
 }
 
 .key {
   font-weight: bold;
-  color: #2c3e50;
+  color: #010203;
   font-size: 13px;
   display: inline;
   margin-right: 5px;
@@ -190,7 +190,7 @@ button:disabled {
 .value {
   color: #34495e;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.2;
   display: inline;
 }
 
