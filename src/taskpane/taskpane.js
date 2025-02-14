@@ -547,9 +547,9 @@ function updateCategoryDisplay(category) {
       // For closing category, map the fields to key-value format
       if (category === "closing") {
         const entries = [
-          { key: "Checklist Area", value: pair.mainHeading },
-          { key: "Action", value: pair.sectionHeading },
-          { key: "Content", value: pair.content },
+          { key: "Article", value: pair.mainHeading },
+          { key: "Section", value: pair.sectionHeading },
+          { key: "Clause", value: pair.content },
         ];
 
         entries.forEach((entry) => {
