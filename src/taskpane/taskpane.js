@@ -778,8 +778,8 @@ sendDealButton.addEventListener("click", async () => {
       return;
     }
 
-    const dealUuid = matchedDeal.deal;
-    console.log("This is matched deal id: ", matchedDeal.deal);
+    const dealUuid = matchedDeal.deal[0].uuid;
+    console.log("This is matched deal id: ", matchedDeal.deal[0].uuid);
     const tenantId = loginResponseData.tenant.uuid;
 
     if (selectedCategory === "closing") {
