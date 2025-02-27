@@ -374,7 +374,7 @@ async function getListInfoFromSelection() {
           );
 
           if (!isDuplicate) {
-            if (selectedCategory === "closing") {
+            if (selectedCategory === "closing" || selectedCategory === "postClosing") {
               // Ensure bestMatch.key is defined before splitting
               if (bestMatch.key) {
                 const keyParts = bestMatch.key.split(/(?<=^[^\d]+)(?=\d)/);
@@ -425,7 +425,7 @@ async function getListInfoFromSelection() {
         updateCategoryDisplay(selectedCategory);
 
         let clipboardString;
-        if (selectedCategory === "closing") {
+        if (selectedCategory === "closing" || selectedCategory === "postClosing") {
           console.log("Formatting closing checklist data");
           clipboardString = formatClosingChecklistData(selectedCategory);
         } else {
@@ -451,7 +451,7 @@ function formatCategoryData(category) {
     return "{}";
   }
 
-  if (category === "closing") {
+  if (category === "closing" || category === "postClosing") {
     return formatClosingChecklistData(category);
   }
   const pairs = categoryData[category].map((pair) => `"${pair.key}": "${pair.value.replace(/"/g, '\\"')}"`).join(",\n");
@@ -545,7 +545,7 @@ function updateCategoryDisplay(category) {
   if (categoryData[category]) {
     categoryData[category].forEach((pair) => {
       // For closing category, map the fields to key-value format
-      if (category === "closing") {
+      if (category === "closing" || category === "postClosing") {
         const entries = [
           { key: "Article", value: pair.mainHeading },
           { key: "Section", value: pair.sectionHeading },
@@ -808,6 +808,34 @@ sendDealButton.addEventListener("click", async () => {
         console.error("Error details:", errorData);
       }
       console.log("This is the response data of the preview api", response);
+    } else if (selectedCategory === "postClosing") {
+      //This is the code for sending the data to post closing
+      const response = await fetch("https://dealdriverapi.drapcode.co/addPostClosingData", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          dealId: dealUuid,
+          tenantId: tenantId,
+          environment: selectedEnvironmentValue,
+        },
+        body: formatClosingChecklistData(selectedCategory),
+      });
+      console.log(
+        "This is the body of the data being sent in the localhost: ",
+        formatClosingChecklistData(selectedCategory)
+      );
+      if (response.ok) {
+        const responseData = await response.json();
+        showMessage(`${selectedCategory} data sent successfully to ${selectedDealName}`);
+        console.log("Server response:", responseData);
+      } else {
+        const errorData = await response.text();
+        showMessage("Error while sending the data", true);
+        console.error(`Failed to send deal. Status: ${response.status}`);
+        console.error("Error details:", errorData);
+      }
+      console.log("This is the response data of the preview api", response);
+      console.log("The selected Category is post closing");
     } else {
       const formattedCategoryData = categoryData[selectedCategory].reduce((acc, item) => {
         acc[item.key] = item.value;
@@ -817,7 +845,7 @@ sendDealButton.addEventListener("click", async () => {
         "This the formattedCategoryData that is being parsed before sending to the api: ",
         formattedCategoryData
       );
-      //
+      //This is the api call being made for R&W
       const response = await fetch("https://dealdriverapi.drapcode.co/parseWord", {
         method: "POST",
         headers: {
