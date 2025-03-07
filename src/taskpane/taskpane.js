@@ -798,7 +798,7 @@ sendDealButton.addEventListener("click", async () => {
     const tenantId = loginResponseData.tenant.uuid;
 
     if (selectedCategory === "closing") {
-      const response = await fetch("https://dealdriverapi.drapcode.coe/addClosingData", {
+      const response = await fetch("https://dealdriverapi.drapcode.co/addClosingData", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
