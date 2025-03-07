@@ -222,19 +222,19 @@ async function loadAllParagraphsData() {
       const body = context.document.body;
       const paragraphs = body.paragraphs;
 
-      // Load all paragraph data in a batch
+      // Load all paragraph data
       paragraphs.load("items, items/text, items/isListItem");
       await context.sync();
 
-      allParagraphsData = [];
       let parentNumbering = [];
       let lastNumbering = "";
+      const today = new Date().toISOString().split("T")[0]; // Get current date (YYYY-MM-DD)
 
       // Disable button and set loading state
       document.getElementById("logStyleContentButton").disabled = true;
       isDataLoaded = false;
 
-      // Filter and prepare batch loading for list item details
+      // Load list item details
       const listItems = paragraphs.items.filter((p) => p.isListItem);
       listItems.forEach((item) => item.listItem.load("level, listString"));
       await context.sync(); // Sync all list item data at once
@@ -243,16 +243,17 @@ async function loadAllParagraphsData() {
         const paragraph = paragraphs.items[i];
         const text = normalizeText(paragraph.text);
 
-        if (text.length <= 1) {
-          continue; // Skip empty or single-character paragraphs
-        }
+        if (text.length <= 1) continue; // Skip empty/single-character paragraphs
+
+        let existingItem = allParagraphsData.find((item) => item.index === i);
+        let revisedKey = "";
 
         if (paragraph.isListItem) {
           const listItem = paragraph.listItem;
           const level = listItem.level;
           const listString = listItem.listString || "";
 
-          // Update parent numbering based on level
+          // Update parent numbering
           if (level <= parentNumbering.length) {
             parentNumbering = parentNumbering.slice(0, level);
           }
@@ -265,8 +266,15 @@ async function loadAllParagraphsData() {
             .join(".");
           lastNumbering = fullNumbering;
 
+          // Check if the content has changed
+          if (existingItem && existingItem.value !== text) {
+            revisedKey = `${fullNumbering} [Revised ${today}]`;
+          } else {
+            revisedKey = fullNumbering;
+          }
+
           allParagraphsData.push({
-            key: fullNumbering,
+            key: revisedKey,
             value: text,
             originalText: paragraph.text.trim().replace(/^\.\s*/, ""),
             isListItem: true,
@@ -276,10 +284,17 @@ async function loadAllParagraphsData() {
             parentNumbers: [...parentNumbering],
           });
         } else {
-          // For non-list items, create a unique key based on the last numbering
-          const key = lastNumbering ? `${lastNumbering} (text)` : `text_${i + 1}`;
+          const baseKey = lastNumbering ? `${lastNumbering} (text)` : `text_${i + 1}`;
+
+          // Check if the content has changed
+          if (existingItem && existingItem.value !== text) {
+            revisedKey = `${baseKey} [Revised ${today}]`;
+          } else {
+            revisedKey = baseKey;
+          }
+
           allParagraphsData.push({
-            key: key,
+            key: revisedKey,
             value: text,
             originalText: paragraph.text.trim().replace(/^\.\s*/, ""),
             isListItem: false,
@@ -294,7 +309,7 @@ async function loadAllParagraphsData() {
 
       console.log("All paragraphs data loaded:", allParagraphsData);
 
-      // Enable the log button only if a category is selected
+      // Enable the log button if a category is selected
       const categorySelect = document.getElementById("categorySelect");
       document.getElementById("logStyleContentButton").disabled = !categorySelect.value;
       isDataLoaded = true;
@@ -783,7 +798,7 @@ sendDealButton.addEventListener("click", async () => {
     const tenantId = loginResponseData.tenant.uuid;
 
     if (selectedCategory === "closing") {
-      const response = await fetch("https://dealdriverapi.drapcode.co/addClosingData", {
+      const response = await fetch("https://dealdriverapi.drapcode.coe/addClosingData", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
