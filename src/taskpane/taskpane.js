@@ -785,6 +785,7 @@ sendDealButton.addEventListener("click", async () => {
     const loginResponseData = JSON.parse(loginResponseDataString);
     // const dealsArray = loginResponseData.userDetails.deal_name || [];
     const dealsArray = loginResponseData.userDetails.tenantId || [];
+    console.log("This is the dealsArray which contains all the data: ", dealsArray);
     const matchedDeal = dealsArray.find((deal) => deal.name === selectedDealName);
     console.log("This is the matched Deal: ", matchedDeal);
 
@@ -792,6 +793,42 @@ sendDealButton.addEventListener("click", async () => {
       showMessage("Could not find matching deal", true);
       return;
     }
+    const matchedDealSettingUUID = matchedDeal.deal[0].deal_user_setting;
+    console.log("This is the matchedDealSettingUUID: ", matchedDealSettingUUID);
+    let baseUrl;
+    let finalData;
+    if (selectedEnvironmentValue === "sandbox") {
+      baseUrl = "https://deal-driver-20245869.api.sandbox.drapcode.io";
+    } else if (selectedEnvironmentValue === "preview") {
+      baseUrl = "https://deal-driver-20245869.api.preview.drapcode.io";
+    } else if (selectedEnvironmentValue === "production") {
+      baseUrl = "https://deal-driver-20245869.api.drapcode.io";
+    }
+
+    console.log("This is the base url : ", baseUrl);
+    if (baseUrl) {
+      const dealSettingData = await fetch(
+        `${baseUrl}/api/v1/developer/collection/user_setting/item/${matchedDealSettingUUID}`
+      );
+      finalData = await dealSettingData.json();
+      console.log("This is the dealSettingData: ", finalData);
+    } else {
+      console.error("Invalid environment selected.");
+    }
+
+    // Extract the permissions array
+    // const permissionArray = [];
+    console.log("This is the final data before giving any error: ", finalData);
+    const permissionArray = finalData.permissions || [];
+
+    // Filter permissions containing "_AREA"
+    const requiredPermissions = [
+      "CREATE_POST_CLOSING_CHECKLIST",
+      "CREATE_REPRESENTATION_WARRANTY",
+      "CREATE_REVISED_CLOSING_CHECKLIST",
+    ];
+    const areaPermissions = permissionArray.filter((permission) => requiredPermissions.includes(permission));
+    console.log("Filtered AREA Permissions: ", areaPermissions);
 
     const dealUuid = matchedDeal.deal[0].uuid;
     console.log("This is matched deal id: ", matchedDeal.deal[0].uuid);
@@ -805,6 +842,7 @@ sendDealButton.addEventListener("click", async () => {
           dealId: dealUuid,
           tenantId: tenantId,
           environment: selectedEnvironmentValue,
+          permissions: areaPermissions,
         },
         body: formatClosingChecklistData(selectedCategory),
       });
@@ -832,6 +870,7 @@ sendDealButton.addEventListener("click", async () => {
           dealId: dealUuid,
           tenantId: tenantId,
           environment: selectedEnvironmentValue,
+          permissions: areaPermissions,
         },
         body: formatClosingChecklistData(selectedCategory),
       });
@@ -868,6 +907,7 @@ sendDealButton.addEventListener("click", async () => {
           dealId: dealUuid,
           tenantId: tenantId,
           environment: selectedEnvironmentValue,
+          permissions: areaPermissions,
         },
         body: JSON.stringify(formattedCategoryData),
       });
@@ -877,7 +917,7 @@ sendDealButton.addEventListener("click", async () => {
         console.log("Server response:", responseData);
       } else {
         const errorData = await response.text();
-        showMessage("Error while sending the data", true);
+        showMessage(errorData, true);
         console.error(`Failed to send deal. Status: ${response.status}`);
         console.error("Error details:", errorData);
       }
